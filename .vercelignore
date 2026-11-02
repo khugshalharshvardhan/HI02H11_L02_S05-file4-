@@ -1,0 +1,27 @@
+# Only the built lesson (HI02H11_L02_S05_DEV_HANDOFF/3_BUILD) has to reach the CDN; vercel.json's
+# rewrites point there. Everything else is authoring material: left in, it would be publicly
+# fetchable at its path and would add its weight to every deploy.
+
+# secrets - the Gemini key must NEVER be served
+**/.env
+**/.env.*
+
+# authoring material
+HI02H11_L02_S05_DEV_HANDOFF/1_SPEC/
+HI02H11_L02_S05_DEV_HANDOFF/4_ENGINE/
+HI02H11_L02_S05_DEV_HANDOFF/4_SOURCE/
+HI02H11_L02_S05_DEV_HANDOFF/5_SCREENSHOTS/
+HI02H11_L02_S05_DEV_HANDOFF/5_CURRENT_BUILD_SCREENSHOTS/
+HI02H11_L02_S05_DEV_HANDOFF/_v1_factory_build/
+HI02H11_L02_S05_DEV_HANDOFF/celebration_kit/
+HI02H11_L02_S05_DEV_HANDOFF/_rebuild.sh
+HI02H11_L02_S05_DEV_HANDOFF/CHANGES.md
+HI02H11_L02_S05_DEV_HANDOFF/README.md
+
+*.pptx
+*.xlsx
+.vscode/
+.git/
+
+# the raw source recordings (prepared copies live in assets/Audio and assets/MatraRunner/voice)
+HI02H11_L02_S05_DEV_HANDOFF/3_BUILD/assets/Audio/VO's for अं और अः/
