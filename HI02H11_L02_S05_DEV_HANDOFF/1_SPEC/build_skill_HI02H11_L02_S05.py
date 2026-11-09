@@ -266,10 +266,9 @@ def s_intro(sid):
     return {"id": sid, "phase": "tutorial", "eis": "enactive", "type": "MATRA_PAIRS",
             "prompt_hi": "",
             "audio": {},
-            # [S05 2026-10-28] no next button on page 1: it moves on to page 2 by itself
-            "data": {"pairs": pairs, "phonemes": dict(MATRA_VO), "auto": True, "no_heading": True,
-                     # [S05 2026-11-09] "add a 1 second stop in that screen then jump to the second screen"
-                     "auto_next": True, "auto_next_hold_ms": 1000}}
+            # [S05 2026-11-09] page 1 has the next button again, like pages 2-5 (it no longer moves on
+            # by itself; the engine still supports data.auto_next / auto_next_hold_ms)
+            "data": {"pairs": pairs, "phonemes": dict(MATRA_VO), "auto": True, "no_heading": True}}
 
 
 def s_names(sid):

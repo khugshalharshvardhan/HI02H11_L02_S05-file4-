@@ -257,3 +257,8 @@ Taken from file 3 (`D:\HI02H11_L02_S03(file3)`, commit 2b7e635 "Final chnages", 
 - The 12 s backstop also waits for a queued greeting; a new backstop re-enables ▶ if a clip never reports
   its end. Verified muted, sound locked and open: mid-VO presses stay on the cover, a press after the VO
   starts the lesson.
+
+## 2026-11-09 — page 1 has the next button again
+- User: "give the next button on page 1 just like we used in other pages". `auto_next` / `auto_next_hold_ms`
+  removed from page 1's data in the build script (the engine keeps both flags). Page 1 now waits after its
+  last line with the same pulsing next button as pages 2–5; a tap opens page 2. Verified muted.
