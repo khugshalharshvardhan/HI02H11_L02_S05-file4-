@@ -268,7 +268,8 @@ def s_intro(sid):
             "audio": {},
             # [S05 2026-10-28] no next button on page 1: it moves on to page 2 by itself
             "data": {"pairs": pairs, "phonemes": dict(MATRA_VO), "auto": True, "no_heading": True,
-                     "auto_next": True}}
+                     # [S05 2026-11-09] "add a 1 second stop in that screen then jump to the second screen"
+                     "auto_next": True, "auto_next_hold_ms": 1000}}
 
 
 def s_names(sid):

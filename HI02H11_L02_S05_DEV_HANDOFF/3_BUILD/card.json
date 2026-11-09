@@ -396,7 +396,8 @@
     },
     "auto": true,
     "no_heading": true,
-    "auto_next": true
+    "auto_next": true,
+    "auto_next_hold_ms": 1000
    }
   },
   {

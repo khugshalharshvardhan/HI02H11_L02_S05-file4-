@@ -5307,6 +5307,9 @@ function _autoAdvance(btn){
   if(state._autoFired === myIdx) return;          // unlocking twice must not send it twice
   state._autoFired = myIdx;
   clearTimeout(state._autoFallback);
+  /* [S05 2026-11-09] a slide may hold its finished screen a moment before moving on (page 1: "add a
+     1 second stop in that screen then jump to the second screen") - data.auto_next_hold_ms */
+  const _hs = CARD.slides[myIdx], _hold = Math.max(0, (_hs && _hs.data && +_hs.data.auto_next_hold_ms) || 0);
   setTimeout(()=>{
     if(state.idx !== myIdx) return;               // already moved on
     const go = (typeof btn.onclick === "function")
@@ -5328,7 +5331,7 @@ function _autoAdvance(btn){
     };
     if(typeof state.trainDepart === "function") state.trainDepart(done);
     else setTimeout(done, 420);                   // no train on this screen (the sentence rounds)
-  }, 80);
+  }, 80 + _hold);
 }
 function nudgeNavBtn(){
   const btn = $("navBtn");
@@ -19133,14 +19136,20 @@ function boot(){
     _startBtnShown = true;
     setStartBtnReady(true); armStartNudge();
     const go = (e)=>{
-      if(e && e.target && e.target.closest && e.target.closest("#sgBtn")) return;   /* ▶ starts the lesson */
+      /* [S05 2026-11-09] "the play button should only work when the VO is finished": the greeting has
+         not been heard yet, so a first press on ▶ plays it (and the whistle) instead of starting the
+         lesson. The button stays on screen but is not pressable until the greeting ends. */
       ["pointerdown", "keydown"].forEach(t => window.removeEventListener(t, go, true));
+      { const b = $("sgBtn"); if(b){ b.disabled = true; b.classList.remove("idle-pulse"); } }
+      disarmStartNudge();
       try{ _resumeVoiceAudio(); }catch(_){}
       /* [S05] the train arrived while sound was still locked, so its whistle was muted: the first tap
          sounds it now, and the greeting follows once the whistle (1.4 s) is over */
       const _whistle = (typeof window.__coverTrainSound === "function");
       if(_whistle) setTimeout(()=>{ try{ window.__coverTrainSound(); }catch(_){} }, 60);
-      setTimeout(()=>{ _greetDeferred = false; if(_onLandingNow() && !_landingPlayedOk && !isPlaying) _speakLanding(); },
+      setTimeout(()=>{ _greetDeferred = false;
+                       if(_onLandingNow() && !_landingPlayedOk && !isPlaying) _speakLanding();
+                       else { setStartBtnReady(true); armStartNudge(); } },
                  _whistle ? 1550 : 60);
     };
     ["pointerdown", "keydown"].forEach(t => window.addEventListener(t, go, true));
@@ -19149,10 +19158,20 @@ function boot(){
     if(_soundLocked()){ _deferGreeting(); return; }
     const _t0 = Date.now();
     if(!_startBtnShown) setStartBtnReady(false);
+    else { const b = $("sgBtn"); if(b) b.disabled = true; }   /* [S05 2026-11-09] visible, not pressable, until the VO ends */
     disarmStartNudge();
     play(landSrc, ()=>{ if(Date.now() - _t0 > 600) _landingPlayedOk = true;
                         _startBtnShown = true;
-                        setStartBtnReady(true); armStartNudge(); }); };
+                        setStartBtnReady(true); armStartNudge(); });
+    _btnBackstop(); };
+  /* [S05 2026-11-09] never strand the child: if a greeting/replay never reports its end, ▶ comes
+     back once nothing is sounding (looks again every second, 20 s at most) */
+  const _btnBackstop = ()=>{ const t0 = Date.now(); let quiet = 0;
+    (function look(){ setTimeout(()=>{ const b = $("sgBtn");
+      if(!_onLandingNow() || !b || !b.disabled) return;
+      quiet = isPlaying ? 0 : quiet + 1;
+      if(quiet >= 2 && Date.now() - t0 > 4000){ setStartBtnReady(true); armStartNudge(); return; }
+      if(Date.now() - t0 < 30000) look(); }, 1000); })(); };
   const playLanding = (immediate)=>{
     if(!_onLandingNow()) return;
     if(!immediate && typeof window.landingTrainReady === "function"){
@@ -19170,7 +19189,8 @@ function boot(){
   (function _startBackstop(t){
     setTimeout(()=>{
       if(!(_onLandingNow() && $("sgBtn") && $("sgBtn").disabled)) return;
-      if(isPlaying && t < 25000){ _startBackstop(t + 1000); return; }
+      /* [S05] ...nor in the beat between the first tap's whistle and the greeting it queued */
+      if((isPlaying || _greetDeferred) && t < 25000){ _startBackstop(t + 1000); return; }
       setStartBtnReady(true); armStartNudge();
     }, t === 12000 ? 12000 : 1000);
   })(12000);

@@ -244,3 +244,16 @@ Taken from file 3 (`D:\HI02H11_L02_S03(file3)`, commit 2b7e635 "Final chnages", 
 - Fix: marker removed; `mountSlide` also greys the speaker on the page's first frame. Now the speaker
   is grey from the moment a page opens until its last line has finished, then turns blue - same as the
   cover. Verified on pages 1–15 (muted headless sweep): no blue between lines.
+
+## 2026-11-09 — page 1 holds 1 s before page 2
+- New slide flag `auto_next_hold_ms` (engine `_autoAdvance`); page 1 sets 1000. Measured: last VO ends →
+  page 2 now 2.65 s (was 1.66 s). Page 1's next button stays hidden throughout (`body.auto-next`).
+
+## 2026-11-09 — cover: ▶ works only after the cover VO has finished
+- `4_ENGINE/lesson_template.html` landing. Sound locked on a first visit: ▶ used to be pressable before
+  the greeting had played, so a press during the greeting jumped to page 1. Now the first tap (even on ▶)
+  plays the whistle + greeting, and ▶ is not pressable until it ends.
+- Replay from the speaker: ▶ stays on screen (QA BUG_01) but ignores presses until the replay ends.
+- The 12 s backstop also waits for a queued greeting; a new backstop re-enables ▶ if a clip never reports
+  its end. Verified muted, sound locked and open: mid-VO presses stay on the cover, a press after the VO
+  starts the lesson.
