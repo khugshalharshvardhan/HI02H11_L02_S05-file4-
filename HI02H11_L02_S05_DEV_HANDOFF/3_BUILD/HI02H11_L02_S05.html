@@ -2461,9 +2461,10 @@ body.is-start .phase-gate{
    transparent treatment `.tr-pic` uses. */
 .sc-stage{ display:flex; align-items:center; justify-content:center; gap:26px; width:100%;
   padding:2px 4px 14px; }
-.sc-scene{ flex:0 0 auto; width:366px; height:288px; border-radius:22px; overflow:hidden;
+.sc-scene{ flex:0 0 auto; width:366px; height:auto; aspect-ratio:800/792; border-radius:22px; overflow:hidden;
   background:#EAF4FF; border:3px solid #E4ECF7; display:flex; align-items:center;
   justify-content:center; box-shadow:0 10px 26px rgba(11,61,140,.12); }
+/* [S03 2026-10-22, ported] the panel takes the scenes' own ~1:1 shape (800x795 / 800x789), so cover no longer crops them */
 .sc-sceneimg{ width:100%; height:100%; object-fit:cover; display:block; }
 .sc-sceneemoji{ font-size:132px; line-height:1; }
 .sc-right{ flex:1 1 auto; display:flex; flex-direction:column; align-items:stretch; gap:16px;
@@ -2534,7 +2535,7 @@ body.is-start .phase-gate{
 @media (max-width:1180px){
        .wb-akshar{ font-size:40px; } .wb-tail{ font-size:36px; } .wb-inakshar{ font-size:34px; }
   .tr-card.k-akshar{ width:88px; min-height:86px; }
-  .sc-scene{ width:312px; height:250px; }
+  .sc-scene{ width:312px; height:auto; }
   .sc-sentence{ font-size:26px; min-height:86px; }
   .sc-blank{ min-width:112px; height:46px; }
   .sc-word{ font-size:26px; }
@@ -2757,7 +2758,7 @@ body.is-start .phase-gate{
    coach's own slice, so the glow lands on `.coach-body` and the shake on the whole coach. */
 .train-coach.is-tappable{ cursor:pointer; }
 .train-coach.is-tappable .coach-body{ transition:transform .14s ease, filter .16s ease; }
-.train-coach.is-tappable:hover .coach-body{ transform:translateY(-3px); }
+.train-coach.is-tappable:not(.is-off):hover .coach-body{ transform:translateY(-3px); }
 
 /* ---------- [r19] HOVER AND PRESS ----------
    Yasir: "when we hover over the cart it should glow with slight golden color, and when we tap on
@@ -2773,12 +2774,14 @@ body.is-start .phase-gate{
    light on it. Gold is kept deliberately thinner than the nudge's, so "slight" stays slight and
    the two never compete. */
 @media (hover:hover) and (pointer:fine){
-  .train-coach.is-tappable:not(.is-out):not(.is-nudge):not(.is-correct):not(.is-shake):hover .coach-body{
+  /* [QA BUG_04 follow-up] never on a coach greyed out by rung 3 (.is-off): the gold used to outrank its
+     grey, so the dead coach lit up under the cursor and went grey again when the cursor left */
+  .train-coach.is-tappable:not(.is-off):not(.is-out):not(.is-nudge):not(.is-correct):not(.is-shake):hover .coach-body{
     filter:drop-shadow(0 0 2px rgba(255,206,46,.50)) drop-shadow(0 0 10px rgba(255,190,40,.48));
   }
   /* the sort screens' coaches are drop targets, not tap targets, but they are the same carts and
      answer to the same hover */
-  .train-coach:not(.is-nudge):not(.is-correct) .coach-body.dd-zone:not(.filled):hover{
+  .train-coach:not(.is-off):not(.is-nudge):not(.is-correct) .coach-body.dd-zone:not(.filled):hover{
     filter:drop-shadow(0 0 2px rgba(255,206,46,.50)) drop-shadow(0 0 10px rgba(255,190,40,.48));
   }
 }
@@ -4394,6 +4397,10 @@ body.spk-busy .tut-audio{ pointer-events:none !important; opacity:.45; filter:gr
 /* [S05 2026-10-29] the drawn ◌ं / ◌ः on the 50 px label plates: a touch smaller, so ring and dot sit inside the plate */
 .coach-label .sg-sign{ width:.78em; height:.78em; }
 .coach-label .sg-sign.sg-anu{ transform:translateY(.18em); }
+
+/* [S03 2026-10-26, ported] pages 4 / 6: the word and its mic sit 16 px lower, together (the mic is placed inside the
+   row, so it moves with the word and stays level with it) - more room under the picture */
+.mx-v2 .mx-wordrow{ translate:0 16px; }
 
 
 /* [r111] File5's confetti: the kit's styles (recipe 7) + File5's whole-window layer, copied unchanged */
@@ -7705,6 +7712,7 @@ function makeDraggable(tileEl, onDrop, opts){
     const p = e.touches ? e.touches[0] : e;
     startX = p.clientX; startY = p.clientY;
     dx = 0; dy = 0;
+    _home = tileEl.getBoundingClientRect();      /* [QA BUG_04] measured before the lift transform */
     tileEl.classList.add("dragging");
     /* [r26] THE HAND STEPS ASIDE THE MOMENT THE CHILD ACTS.
        Yasir: "when we try to drag element then remove hand nudge animation after 2 incorrect
@@ -7715,10 +7723,31 @@ function makeDraggable(tileEl, onDrop, opts){
     if(opts && opts.onPick) opts.onPick();   // e.g. show a nudge at the slot this tile belongs in
     e.preventDefault();
   }
+  /* [QA BUG_04, ported from S03] A CARD LOCKED BY RUNG 3 CANNOT BE CARRIED INTO A GREYED COACH.
+     QA: "user should not be able to drag in the wrong container after all chances are exhausted".
+     Refusing the drop was not enough - the card still travelled over the greyed coach. A card with
+     `data-only` (rung 3 has named its coach) now meets the greyed coaches as a wall: a move that
+     would put it over one is not taken (it slides along the edge instead), so it can only go home
+     or to its own coach. Every other card drags exactly as before. */
+  let _home = null;
+  const _hitsOff = (ndx, ndy)=>{
+    if(!_home) return false;
+    const L = _home.left + ndx * scale, T = _home.top + ndy * scale,
+          R = L + _home.width, B = T + _home.height;
+    return [...document.querySelectorAll(".is-off")].some(o => {
+      const r = o.getBoundingClientRect();
+      return r.width && L < r.right && R > r.left && T < r.bottom && B > r.top; });
+  };
   function onMove(e){
     if(!dragging) return;
     const p = e.touches ? e.touches[0] : e;
-    dx = (p.clientX - startX) / scale; dy = (p.clientY - startY) / scale;
+    let ndx = (p.clientX - startX) / scale, ndy = (p.clientY - startY) / scale;
+    if(tileEl.dataset.only != null && _hitsOff(ndx, ndy)){
+      if(!_hitsOff(ndx, dy)) ndy = dy;            /* slide along the wall horizontally */
+      else if(!_hitsOff(dx, ndy)) ndx = dx;       /* ...or vertically */
+      else { ndx = dx; ndy = dy; }                /* or stay put */
+    }
+    dx = ndx; dy = ndy;
     tileEl.style.transform = `translate(${dx}px,${dy}px) scale(1.08)`;
     // highlight zone under — hide the tile from hit-testing so the dragged tile
     // (z-index 50, now covering the zone) doesn't mask the zone beneath it.
@@ -13570,8 +13599,34 @@ SlideModules.MATCH_VACHAN_PAIRS    = SlideModules.MATCH_GENDER_PAIRS;
             "</button>" +
           "</div>";
         const mic = wrap.querySelector(".mx-mic");
+        const word = wrap.querySelector(".mp-word");
+        /* [S03 2026-10-26, ported] the word was not level with the mic: every word here sat ~16 px high.
+           The row centres the word's whole line box, but the eye reads the letters' BODY (शिरोरेखा to
+           baseline). Move the word so that body's middle is on the mic's middle; the matra above and the
+           nukta below hang off it as they should. `translate`, not `transform`, so nothing else that
+           moves a glyph is fought with. */
+        /* offsets, not rects: both the strut and the mic measure against .mx-wordrow (the positioned
+           box the mic is placed in), in CSS px, untouched by the row's pop-in scale or the stage --scale */
+        const align = ()=>{
+          if(!word.isConnected || !mic || !mic.offsetHeight) return;
+          const cs = getComputedStyle(word);
+          const cx = (align._c = align._c || document.createElement("canvas").getContext("2d"));
+          cx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+          const head = cx.measureText("क").actualBoundingBoxAscent;        /* the शिरोरेखा's top */
+          if(!isFinite(head) || !head) return;
+          const strut = document.createElement("i");
+          strut.style.cssText = "display:inline-block;width:0;height:0";
+          word.appendChild(strut);
+          const same = strut.offsetParent === mic.offsetParent;
+          const base = strut.offsetTop; strut.remove();                   /* the baseline */
+          if(!same) return;
+          const dy = (mic.offsetTop + mic.offsetHeight / 2) - (base - head / 2);
+          if(Math.abs(dy) < 60) word.style.translate = "0 " + dy.toFixed(1) + "px";
+        };
+        align();
+        if(document.fonts && document.fonts.ready) document.fonts.ready.then(align);
         return { card: wrap.querySelector(".mx-wordrow"),
-                 word: wrap.querySelector(".mp-word"),
+                 word,
                  pic:  wrap.querySelector(".mex-pic"),
                  mic };
       };
@@ -14611,7 +14666,7 @@ const mrv = u => u + "?v=" + MR_AV;
    immutable for a year, so a device that had played an earlier build kept drawing the old pictures.
    Stamped from the CONTENT of the art folder by the lesson build, so a changed file gets a new
    address and every device fetches it; unchanged, the address stays and the cache still works. */
-const MR_IV = "e5de8baa7dff";
+const MR_IV = "1a2ade08c485";
 const mri = u => u + "?v=" + MR_IV;
 /* बोली जाने वाली पंक्तियाँ — assets/MatraRunner/voice/<id>.ogg */
 /* [r76] the lesson's आप register, as the recordings now speak it (the SME's round-3 rule: the
@@ -18615,7 +18670,7 @@ if(document.fonts && document.fonts.load){
        it never competes with the lesson's own voice. The pictures are kept, decoded, until the game
        has started. */
     const D = "assets/MatraRunner/";
-    const ART_V = "e5de8baa7dff", AUD_V = "d76b8f0a03ac";
+    const ART_V = "1a2ade08c485", AUD_V = "d76b8f0a03ac";
     const imgs = "bg_hills.webp,bg_mountains.webp,bg_sky.webp,bg_valley.webp,bridge_deck.webp,bridge_post.webp,bridge_wall.webp,bush_1.webp,bush_2.webp,coin.webp,gate_correct.webp,gate_neutral.webp,gate_wrong.webp,heart_empty.webp,heart_full.webp,hedge.webp,lantern.webp,ob_beam.webp,ob_block.webp,ob_log.webp,ob_thorns.webp,panel3.webp,pillar_1.webp,pillar_2.webp,plate.webp,rail.webp,star_empty.webp,star_full.webp,swifty_bump.webp,swifty_cheer.webp,swifty_fall.webp,swifty_happy.webp,swifty_hit.webp,swifty_jump.webp,swifty_lean_left.webp,swifty_lean_right.webp,swifty_run.webp,swifty_slide.webp,swifty_stumble.webp,tex_grass.webp,tex_path.webp,tree_1.webp,tree_2.webp,tree_3.webp,ui_badge.webp,ui_banner.webp,ui_btn.webp,coin.svg".split(",").filter(Boolean);
     const vid = (()=>{ try{ const v = document.createElement("video");
                        return v.canPlayType('video/webm; codecs="vp9"') ? "bg_valley.webm" : "bg_valley.mp4"; }
@@ -20294,9 +20349,14 @@ function boot(){
          if(c && c.state === "running") return false; }catch(e){}
     return !!(navigator.userActivation);       /* no way to tell -> assume unlocked, as before */
   };
+  /* [QA BUG_01, ported from S03] the play button is held back for the FIRST greeting only (r103).
+     Once it has appeared - after a greeting, or at once because sound is locked (below) - a later
+     greeting leaves it on screen and pressable; शुरू करें stops the greeting itself (stopAudio). */
+  let _startBtnShown = false;
   let _greetDeferred = false;
   const _deferGreeting = ()=>{
     if(_greetDeferred) return; _greetDeferred = true;
+    _startBtnShown = true;
     setStartBtnReady(true); armStartNudge();
     const go = (e)=>{
       if(e && e.target && e.target.closest && e.target.closest("#sgBtn")) return;   /* ▶ starts the lesson */
@@ -20314,8 +20374,10 @@ function boot(){
   const _speakLanding = ()=>{ if(!_onLandingNow()) return;
     if(_soundLocked()){ _deferGreeting(); return; }
     const _t0 = Date.now();
-    setStartBtnReady(false); disarmStartNudge();
+    if(!_startBtnShown) setStartBtnReady(false);
+    disarmStartNudge();
     play(landSrc, ()=>{ if(Date.now() - _t0 > 600) _landingPlayedOk = true;
+                        _startBtnShown = true;
                         setStartBtnReady(true); armStartNudge(); }); };
   const playLanding = (immediate)=>{
     if(!_onLandingNow()) return;

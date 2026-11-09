@@ -2480,8 +2480,34 @@
             "</button>" +
           "</div>";
         const mic = wrap.querySelector(".mx-mic");
+        const word = wrap.querySelector(".mp-word");
+        /* [S03 2026-10-26, ported] the word was not level with the mic: every word here sat ~16 px high.
+           The row centres the word's whole line box, but the eye reads the letters' BODY (शिरोरेखा to
+           baseline). Move the word so that body's middle is on the mic's middle; the matra above and the
+           nukta below hang off it as they should. `translate`, not `transform`, so nothing else that
+           moves a glyph is fought with. */
+        /* offsets, not rects: both the strut and the mic measure against .mx-wordrow (the positioned
+           box the mic is placed in), in CSS px, untouched by the row's pop-in scale or the stage --scale */
+        const align = ()=>{
+          if(!word.isConnected || !mic || !mic.offsetHeight) return;
+          const cs = getComputedStyle(word);
+          const cx = (align._c = align._c || document.createElement("canvas").getContext("2d"));
+          cx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+          const head = cx.measureText("क").actualBoundingBoxAscent;        /* the शिरोरेखा's top */
+          if(!isFinite(head) || !head) return;
+          const strut = document.createElement("i");
+          strut.style.cssText = "display:inline-block;width:0;height:0";
+          word.appendChild(strut);
+          const same = strut.offsetParent === mic.offsetParent;
+          const base = strut.offsetTop; strut.remove();                   /* the baseline */
+          if(!same) return;
+          const dy = (mic.offsetTop + mic.offsetHeight / 2) - (base - head / 2);
+          if(Math.abs(dy) < 60) word.style.translate = "0 " + dy.toFixed(1) + "px";
+        };
+        align();
+        if(document.fonts && document.fonts.ready) document.fonts.ready.then(align);
         return { card: wrap.querySelector(".mx-wordrow"),
-                 word: wrap.querySelector(".mp-word"),
+                 word,
                  pic:  wrap.querySelector(".mex-pic"),
                  mic };
       };
