@@ -5659,6 +5659,7 @@ function armIdleVo(){
        and so on, every 7 s of silence, until the child acts or the page is answered (state.locked) or left. */
     _idleSince = 0;
     SwiftPAL.emit("idle_vo_replay", { slide_id: s.id, phase: s.phase });
+    if(state.idleReplay && state.idleReplay() !== false) return;   /* [QA BUG_05] handled (e.g. hand only, no VO) */
     if(state.replayAudio) state.replayAudio(); else autoPlayChain(s);
   }, IDLE_VO_TICK);
 }
@@ -6438,13 +6439,17 @@ function refreshMatraWords(root){
    module gives a zone `_hitRect()` (a screen rect - e.g. the whole coach plus a margin); when nothing
    is directly under the finger, the zone whose catch area holds the point (nearest centre first)
    takes the drop. Zones without `_hitRect` behave exactly as before. */
+/* [QA BUG_04, ported from S03] a coach greyed out by rung 3 (.train-coach.is-off) is not a drop
+   target at all: no hover, and a card released over it just glides home - it used to light up,
+   take the drop and shake the card back, which read as "the wrong coach still accepts it". */
+const _zoneOff = z => !!(z && z.closest && z.closest(".is-off"));
 function _zoneAt(x, y){
   const under = document.elementFromPoint(x, y);
   const z = under && under.closest && under.closest(".dd-zone");
-  if(z) return z;
+  if(z && !_zoneOff(z)) return z;
   let best = null, bd = Infinity;
   document.querySelectorAll(".dd-zone").forEach(zz => {
-    if(typeof zz._hitRect !== "function" || !zz.isConnected) return;
+    if(typeof zz._hitRect !== "function" || !zz.isConnected || _zoneOff(zz)) return;
     const r = zz._hitRect(); if(!r) return;
     if(x < r.left || x > r.right || y < r.top || y > r.bottom) return;
     const d = Math.hypot(x - (r.left + r.right) / 2, y - (r.top + r.bottom) / 2);
@@ -16580,7 +16585,20 @@ if(document.fonts && document.fonts.load){
       const opts = [...optsW.children];
 
       state.ownsAudio = true;
-      state.replayAudio = ()=> say(A(slide, "prompt"), ()=> sayOpt(A(slide, "sentence"), ()=>{}));
+      /* [QA BUG_02, ported from S03] once rung 3 has locked the wrong cards and the hand is on the
+         answer, the speaker must not ask the child to choose again: it repeats the rung-3 line
+         (the full sentence + "choose X"). Before rung 3 it is unchanged. */
+      state.replayAudio = ()=>{
+        if((state.scaffoldLevel || 0) >= 3){ say(A(slide, "hint3") || A(slide, "prompt"), ()=>{}); return; }
+        say(A(slide, "prompt"), ()=> sayOpt(A(slide, "sentence"), ()=>{})); };
+      /* [QA BUG_05, ported from S03] the 7 s reminder during the rung-3 hand nudge is the HAND, not a
+         voice line: «since there is hand nudge, there is no need for VO». Before rung 3 it falls
+         through (false) to the normal spoken reminder. */
+      state.idleReplay = ()=>{
+        if((state.scaffoldLevel || 0) < 3) return false;
+        const right = opts.find(x => x.dataset.word === d.answer && !x.disabled);
+        if(right) withHand3(()=>{ if(typeof handOnAnswer === "function") handOnAnswer(right, slide); });
+        return true; };
       setNavActive(false);
       let tries = 0;
 
@@ -18438,6 +18456,7 @@ function mountSlide(idx){
   state.audioReplays = 0; state.gateNavUntilAudio = false; state.endBtnPending = false;
   state.replayAudio = null;   // a module may set a slide-specific replay (e.g. teach slides whose
                               // audio roles aren't in the autoPlayChain order); else the chip replays the chain
+  state.idleReplay = null;    // [QA BUG_05] a module may give the 7 s reminder its own action (else it uses replayAudio)
   state.ownsAudio = false;    // a module that drives its OWN audio sequence sets this → skip autoPlayChain
                               // (else the auto prompt-chain stomps/truncates the module's timed VO)
   state.revealing = false;    // [24a N8] true while a reveal_seq/sortSeqReveal is mid-flight (blocks replay + drag)
@@ -19091,7 +19110,13 @@ function boot(){
       setStartBtnReady(true); armStartNudge();
     }, t === 12000 ? 12000 : 1000);
   })(12000);
-  const sgVo = $("sgVo"); if(sgVo) sgVo.onclick = (e)=>{ e.stopPropagation(); playLanding(true); };   /* true = an explicit replay never waits for the train */
+  /* [QA BUG_03, ported from S03] THE SPEAKER IS NOT LIVE UNTIL THE TRAIN HAS ARRIVED. The greeting is
+     already queued behind the arrival (r7), so a tap during it started the greeting early AND the
+     queue started it again on arrival - two greetings over each other. Taps are ignored until then;
+     the speaker keeps its normal look (no grey), and an explicit replay after that still replays at once. */
+  const sgVo = $("sgVo"); if(sgVo) sgVo.onclick = (e)=>{ e.stopPropagation();
+    if(typeof window.landingTrainReady === "function" && !window.__ltReady) return;
+    playLanding(true); };   /* true = an explicit replay never waits for the train */
   // ---- [engine JS] r4/P2 boot loader: loader.gif until assets warm, then it dismisses ITSELF into
   // the landing (NO tap gate). DUAL auto-dismiss (window 'load' OR a 2.5s watchdog — never strand the
   // child), deduped by .done. The same handler adds body.loaded (unblocks the concept-strip stagger)

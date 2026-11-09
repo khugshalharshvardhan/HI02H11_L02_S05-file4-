@@ -6723,7 +6723,20 @@ if(document.fonts && document.fonts.load){
       const opts = [...optsW.children];
 
       state.ownsAudio = true;
-      state.replayAudio = ()=> say(A(slide, "prompt"), ()=> sayOpt(A(slide, "sentence"), ()=>{}));
+      /* [QA BUG_02, ported from S03] once rung 3 has locked the wrong cards and the hand is on the
+         answer, the speaker must not ask the child to choose again: it repeats the rung-3 line
+         (the full sentence + "choose X"). Before rung 3 it is unchanged. */
+      state.replayAudio = ()=>{
+        if((state.scaffoldLevel || 0) >= 3){ say(A(slide, "hint3") || A(slide, "prompt"), ()=>{}); return; }
+        say(A(slide, "prompt"), ()=> sayOpt(A(slide, "sentence"), ()=>{})); };
+      /* [QA BUG_05, ported from S03] the 7 s reminder during the rung-3 hand nudge is the HAND, not a
+         voice line: «since there is hand nudge, there is no need for VO». Before rung 3 it falls
+         through (false) to the normal spoken reminder. */
+      state.idleReplay = ()=>{
+        if((state.scaffoldLevel || 0) < 3) return false;
+        const right = opts.find(x => x.dataset.word === d.answer && !x.disabled);
+        if(right) withHand3(()=>{ if(typeof handOnAnswer === "function") handOnAnswer(right, slide); });
+        return true; };
       setNavActive(false);
       let tries = 0;
 

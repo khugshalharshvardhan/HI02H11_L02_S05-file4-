@@ -25,3 +25,12 @@ match S02's; page 1's ◌ं / ◌ः sit inside their cards.
 copies kept; `.gitignore` already ignores them). The key is still in the pushed `first commit`, so rotate it.
 
 Pre-merge copies of every replaced file: `../_backup_pre_s02_7commits_2026-10-22/`.
+
+## 2026-11-09 — S03 QA fixes ported (BUG_02, 03, 04, 05)
+
+Same engine as S03, same bugs; ported from file 3.
+- **BUG_02 (P3, P4 sentence screens):** `4_ENGINE/train_modules.js` — during the rung-3 hand nudge the speaker plays the page's rung-3 line (`vo_p3_h3` / `vo_p4_h3`) instead of the prompt. Before the nudge it is unchanged (prompt + sentence).
+- **BUG_03 (cover):** `4_ENGINE/lesson_template.html` — the सुनो speaker ignores taps until the train has arrived, so the greeting no longer plays twice. Look unchanged.
+- **BUG_04 (G5D, G5, G4, P2 coach sorts):** `_zoneAt()` skips drop zones inside a greyed-out coach (`.is-off`): after the 3rd wrong drop the wrong coach does not light up or take the card; the card glides back (no shake, not counted).
+- **BUG_05 (P3, P4):** new per-slide hook `state.idleReplay`; during the rung-3 hand nudge the 7 s reminder re-shows the hand with no voice line.
+- Rebuilt with `_rebuild.sh`. Verified muted: targeted tests on every affected screen + full mechanics playthrough (exit 0, 0 console errors).
