@@ -4320,7 +4320,6 @@ body.nav-live .slide-host *, body.nav-live .slide-host *::before, body.nav-live 
 .mq-matra .sg-sign.sg-anu{ transform:translateY(.36em); }
 .tr-card.k-matra .tr-matra .sg-sign{ width:.95em; height:.95em; }
 .coach-face .tr-card.k-matra .tr-matra .sg-sign{ width:.8em; height:.8em; }
-=======
 /* ==========================================================================================
    [r139] QA round
    ========================================================================================== */
@@ -19734,6 +19733,9 @@ function mountSlide(idx){
   try{ if(typeof window.__stopLessonSfx === "function") window.__stopLessonSfx(); }catch(e){}
   state.idx = idx;
   state.slideStart = Date.now();
+  /* [S05] the speaker is grey from the very first frame of a page, like the cover's: the speaker
+     watcher (every 80 ms) keeps it grey through the page's opening and lets it go when that is over */
+  try{ document.body.classList.add("spk-busy"); window.__spkIntro = true; }catch(e){}
   state.attempts = 0; state.selectedKey = null; state.locked = false;
   state.hintUsed = false; state.nudgeUsed = false; state.scaffoldLevel = 0; state.hintActive = false; state.helpShown = false;
   state.audioReplays = 0; state.gateNavUntilAudio = false; state.endBtnPending = false;

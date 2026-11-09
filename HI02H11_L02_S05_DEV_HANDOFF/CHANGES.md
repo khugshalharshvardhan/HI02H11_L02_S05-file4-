@@ -236,3 +236,11 @@ Taken from file 3 (`D:\HI02H11_L02_S03(file3)`, commit 2b7e635 "Final chnages", 
   on the window's middle; an above-line mark rises from it). All coach screens.
 * **Sizes = file 3's:** coach labels 50 px (min 128 px), matra cards 64 px, snapped matra 58 px.
 * The drawn ◌ं / ◌ः on the label plates made a touch smaller so ring and dot stay inside the plate.
+
+## 2026-11-09 — speaker stays grey for the whole VO sequence (all pages)
+- Cause: a stray merge marker (`=======`) in `4_ENGINE/train_styles.css` made the browser drop the
+  `body.spk-busy .audio-chip` rule, so the speaker was grey only while a clip sounded and flashed blue
+  in every pause between lines (page 1 most visibly).
+- Fix: marker removed; `mountSlide` also greys the speaker on the page's first frame. Now the speaker
+  is grey from the moment a page opens until its last line has finished, then turns blue - same as the
+  cover. Verified on pages 1–15 (muted headless sweep): no blue between lines.
